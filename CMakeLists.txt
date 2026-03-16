@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 add_executable(RedLight WIN32 src/main.cpp resources/app.rc)
 
-target_link_libraries(RedLight PRIVATE user32 gdi32 Shell32 Advapi32)
+target_link_libraries(RedLight PRIVATE user32 gdi32 Shell32 Magnification Advapi32)
 
 set_target_properties(RedLight PROPERTIES
     LINK_FLAGS "/SUBSYSTEM:WINDOWS"
