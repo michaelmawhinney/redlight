@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <shellapi.h>
+#include <magnification.h>
 #include <cstdio>
 
 #define WM_TRAYICON (WM_USER + 1)
@@ -7,18 +8,86 @@
 #define ID_TRAY_TOGGLE 200
 #define ID_TRAY_ABOUT 201
 #define ID_TRAY_EXIT 202
+#define ID_REFRESH_TIMER 1
 
-HDC hDC;
-WORD originalGammaRamp[3][256];
-WORD redGammaRamp[3][256];
 bool isRedlightActive = false;
 NOTIFYICONDATA nid = {};
+HWND hwndTray = NULL;
+HWND hwndHost = NULL;
+HWND hwndMag = NULL;
+HINSTANCE g_hInstance = NULL;
+
+MAGCOLOREFFECT redEffect = {{
+    1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+    0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+    0.0f, 0.0f, 0.0f, 0.0f, 1.0f
+}};
 
 void ToggleRedlight();
 void UpdateTrayIconTip(const char* tip);
 void InitializeTrayIcon(HINSTANCE hInstance);
 void ShowAboutDialog(HWND parent);
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
+void UpdateMagnifierSource() {
+    if (!hwndMag) return;
+    int x = GetSystemMetrics(SM_XVIRTUALSCREEN);
+    int y = GetSystemMetrics(SM_YVIRTUALSCREEN);
+    int w = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+    int h = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+    RECT src = { x, y, x + w, y + h };
+    MagSetWindowSource(hwndMag, src);
+}
+
+bool CreateMagnifierOverlay() {
+    int x = GetSystemMetrics(SM_XVIRTUALSCREEN);
+    int y = GetSystemMetrics(SM_YVIRTUALSCREEN);
+    int w = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+    int h = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+
+    hwndHost = CreateWindowEx(
+        WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE,
+        "RedLightHost", NULL,
+        WS_POPUP,
+        x, y, w, h,
+        NULL, NULL, g_hInstance, NULL
+    );
+    if (!hwndHost) return false;
+
+    SetLayeredWindowAttributes(hwndHost, 0, 255, LWA_ALPHA);
+
+    hwndMag = CreateWindow(
+        WC_MAGNIFIER, NULL,
+        WS_CHILD | MS_SHOWMAGNIFIEDCURSOR | WS_VISIBLE,
+        0, 0, w, h,
+        hwndHost, NULL, g_hInstance, NULL
+    );
+    if (!hwndMag) {
+        DestroyWindow(hwndHost);
+        hwndHost = NULL;
+        return false;
+    }
+
+    MAGTRANSFORM matrix = {};
+    matrix.v[0][0] = 1.0f;
+    matrix.v[1][1] = 1.0f;
+    matrix.v[2][2] = 1.0f;
+    MagSetWindowTransform(hwndMag, &matrix);
+    MagSetColorEffect(hwndMag, &redEffect);
+    UpdateMagnifierSource();
+    ShowWindow(hwndHost, SW_SHOWNOACTIVATE);
+    return true;
+}
+
+void DestroyMagnifierOverlay() {
+    if (hwndHost) {
+        DestroyWindow(hwndHost);
+        hwndHost = NULL;
+        hwndMag = NULL;
+    }
+}
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
 
@@ -28,17 +97,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return 1;
     }
 
-    hDC = GetDC(NULL);
-    if (!hDC) {
-        MessageBox(NULL, "Failed to get device context.", "Error", MB_ICONERROR);
+    g_hInstance = hInstance;
+
+    if (!MagInitialize()) {
+        MessageBox(NULL, "Failed to initialize Magnification API.", "RedLight Error", MB_ICONERROR);
         return 1;
-    }
-
-    GetDeviceGammaRamp(hDC, originalGammaRamp); // store the original gamma ramp
-
-    for (int i = 0; i < 256; i++) {
-        redGammaRamp[0][i] = (WORD)(i << 8);
-        redGammaRamp[1][i] = redGammaRamp[2][i] = 0;
     }
 
     InitializeTrayIcon(hInstance);
@@ -49,8 +112,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         DispatchMessage(&msg);
     }
 
-    SetDeviceGammaRamp(hDC, originalGammaRamp); // restore the original gamma ramp
-    ReleaseDC(NULL, hDC);
+    if (isRedlightActive) DestroyMagnifierOverlay();
+    MagUninitialize();
 
     ReleaseMutex(hMutex);
     CloseHandle(hMutex);
@@ -64,25 +127,38 @@ void UpdateTrayIconTip(const char* tip) {
 
 void ToggleRedlight() {
     if (isRedlightActive) {
-        SetDeviceGammaRamp(hDC, originalGammaRamp);
+        KillTimer(hwndTray, ID_REFRESH_TIMER);
+        DestroyMagnifierOverlay();
     } else {
-        SetDeviceGammaRamp(hDC, redGammaRamp);
+        if (!CreateMagnifierOverlay()) {
+            MessageBox(NULL, "Failed to create color overlay.", "RedLight Error", MB_ICONERROR);
+            return;
+        }
+        SetTimer(hwndTray, ID_REFRESH_TIMER, 16, NULL);
     }
     isRedlightActive = !isRedlightActive;
     UpdateTrayIconTip(isRedlightActive ? "RedLight ON" : "RedLight off");
 }
 
 void InitializeTrayIcon(HINSTANCE hInstance) {
-    WNDCLASS wc = {0};
+    // Register host window class for magnifier overlay
+    WNDCLASS hostClass = {};
+    hostClass.lpfnWndProc = DefWindowProc;
+    hostClass.hInstance = hInstance;
+    hostClass.lpszClassName = "RedLightHost";
+    RegisterClass(&hostClass);
+
+    // Register tray window class
+    WNDCLASS wc = {};
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = hInstance;
     wc.lpszClassName = "TrayOnlyClass";
     RegisterClass(&wc);
 
-    HWND hwnd = CreateWindowEx(0, "TrayOnlyClass", "RedLight", 0, 0, 0, 0, 0, NULL, NULL, hInstance, NULL);
+    hwndTray = CreateWindowEx(0, "TrayOnlyClass", "RedLight", 0, 0, 0, 0, 0, NULL, NULL, hInstance, NULL);
 
     nid.cbSize = sizeof(NOTIFYICONDATA);
-    nid.hWnd = hwnd;
+    nid.hWnd = hwndTray;
     nid.uID = IDI_REDLIGHT_ICON;
     nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid.uCallbackMessage = WM_TRAYICON;
@@ -92,12 +168,9 @@ void InitializeTrayIcon(HINSTANCE hInstance) {
 }
 
 void ShowAboutDialog(HWND parent) {
-    const HINSTANCE hInstance = GetModuleHandle(NULL);
     char aboutText[512];
     sprintf_s(aboutText, sizeof(aboutText), "RedLight v0.4.0-beta\n\ngithub.com/michaelmawhinney/redlight");
-    const char* aboutTitle = "About";
-
-    MessageBox(parent, aboutText, aboutTitle, MB_OK | MB_ICONINFORMATION);
+    MessageBox(parent, aboutText, "About", MB_OK | MB_ICONINFORMATION);
 }
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
@@ -128,6 +201,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             PostQuitMessage(0);
         } else if (LOWORD(wParam) == ID_TRAY_ABOUT) {
             ShowAboutDialog(hwnd);
+        }
+        break;
+
+    case WM_TIMER:
+        if (wParam == ID_REFRESH_TIMER) {
+            UpdateMagnifierSource();
         }
         break;
 

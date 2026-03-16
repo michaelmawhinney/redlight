@@ -1,0 +1,3 @@
+C:/Users/Jack/Desktop/RedLight/build/CMakeFiles/RedLight.dir
+C:/Users/Jack/Desktop/RedLight/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/Jack/Desktop/RedLight/build/CMakeFiles/ZERO_CHECK.dir
