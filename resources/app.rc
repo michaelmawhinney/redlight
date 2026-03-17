@@ -1,1 +1,26 @@
+#include <winres.h>
+
 100 ICON "redlight.ico"
+
+300 DIALOG 0, 0, 190, 105
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Schedule"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    AUTOCHECKBOX "Enable schedule", 301, 10, 8, 110, 12
+
+    LTEXT "On at:",  -1, 10, 30, 28, 10
+    EDITTEXT 302, 40, 28, 18, 12, ES_NUMBER | ES_CENTER
+    LTEXT ":",       -1, 60, 30,  5, 10
+    EDITTEXT 303, 66, 28, 18, 12, ES_NUMBER | ES_CENTER
+
+    LTEXT "Off at:", -1, 10, 48, 28, 10
+    EDITTEXT 304, 40, 46, 18, 12, ES_NUMBER | ES_CENTER
+    LTEXT ":",       -1, 60, 48,  5, 10
+    EDITTEXT 305, 66, 46, 18, 12, ES_NUMBER | ES_CENTER
+
+    LTEXT "(24h format — hour 0-23, minute 0-59)", -1, 10, 64, 170, 10
+
+    DEFPUSHBUTTON "OK",     1, 55, 84, 36, 14
+    PUSHBUTTON    "Cancel", 2, 100, 84, 36, 14
+END
