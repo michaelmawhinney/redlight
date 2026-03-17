@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmake --version)",
+      "Bash(apt list:*)",
+      "Bash(cmake -B build -S .)",
+      "Bash(where cmake:*)",
+      "Bash(where g++)",
+      "Bash(where cl:*)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Program Files \\(x86\\)/**)",
+      "Read(//c/msys64/mingw64/bin/**)",
+      "Read(//c/mingw64/bin/**)",
+      "Read(//c/ProgramData/chocolatey/bin/**)",
+      "Bash(cmd.exe /c \"where cmake & where g++ & where cl & where mingw32-make\")",
+      "Bash(cmd.exe /c \"where cmake\")",
+      "Bash(cmd.exe /c \"where g++\")",
+      "Bash(cmd.exe /c \"where cl\")"
+    ]
+  }
+}
