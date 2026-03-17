@@ -1,6 +1,6 @@
-^C:\USERS\JACK\DESKTOP\REDLIGHT\BUILD\CMAKEFILES\7237C9A23365631C8A0BF1E6E5383FA2\GENERATE.STAMP.RULE
+^C:\USERS\JACK\DOCUMENTS\REDLIGHT\BUILD\CMAKEFILES\9180FEBBCDB8843AFA9EBB27A8782E50\GENERATE.STAMP.RULE
 setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/Jack/Desktop/RedLight -BC:/Users/Jack/Desktop/RedLight/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/Jack/Desktop/RedLight/build/RedLight.slnx
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/Jack/Documents/redlight -BC:/Users/Jack/Documents/redlight/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/Jack/Documents/redlight/build/RedLight.slnx
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone

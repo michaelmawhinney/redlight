@@ -9,6 +9,7 @@
 #define ID_TRAY_ABOUT     201
 #define ID_TRAY_EXIT      202
 #define ID_TRAY_SCHEDULE  203
+#define ID_TRAY_AUTOSTART 204
 
 #define IDD_SCHEDULE      300
 #define IDC_SCHED_ENABLE  301
@@ -152,6 +153,37 @@ void SaveSchedule() {
     sv("OffHour", (DWORD)schedOffHour);
     sv("OffMin",  (DWORD)schedOffMin);
 
+    RegCloseKey(hKey);
+}
+
+// ── Autostart helpers ─────────────────────────────────────────────────────────
+
+bool GetAutoStart() {
+    HKEY hKey;
+    if (RegOpenKeyExA(HKEY_CURRENT_USER,
+            "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+            0, KEY_READ, &hKey) != ERROR_SUCCESS)
+        return false;
+    DWORD type;
+    DWORD size = 0;
+    bool exists = (RegQueryValueExA(hKey, "RedLight", NULL, &type, NULL, &size) == ERROR_SUCCESS);
+    RegCloseKey(hKey);
+    return exists;
+}
+
+void SetAutoStart(bool enable) {
+    HKEY hKey;
+    if (RegOpenKeyExA(HKEY_CURRENT_USER,
+            "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+            0, KEY_WRITE, &hKey) != ERROR_SUCCESS)
+        return;
+    if (enable) {
+        char exePath[MAX_PATH];
+        GetModuleFileNameA(NULL, exePath, MAX_PATH);
+        RegSetValueExA(hKey, "RedLight", 0, REG_SZ, (BYTE*)exePath, (DWORD)(strlen(exePath) + 1));
+    } else {
+        RegDeleteValueA(hKey, "RedLight");
+    }
     RegCloseKey(hKey);
 }
 
@@ -328,6 +360,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             if (hMenu) {
                 AppendMenu(hMenu, MF_STRING, ID_TRAY_TOGGLE,   TEXT("Toggle ON/off"));
                 AppendMenu(hMenu, MF_STRING, ID_TRAY_SCHEDULE, TEXT("Schedule..."));
+                AppendMenu(hMenu, GetAutoStart() ? MF_STRING | MF_CHECKED : MF_STRING,
+                           ID_TRAY_AUTOSTART, TEXT("Start with Windows"));
                 AppendMenu(hMenu, MF_STRING, ID_TRAY_ABOUT,    TEXT("About"));
                 AppendMenu(hMenu, MF_STRING, ID_TRAY_EXIT,     TEXT("Exit"));
                 SetForegroundWindow(hwnd);
@@ -344,6 +378,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             ToggleRedlight();
         } else if (LOWORD(wParam) == ID_TRAY_SCHEDULE) {
             ShowScheduleDialog(hwnd);
+        } else if (LOWORD(wParam) == ID_TRAY_AUTOSTART) {
+            SetAutoStart(!GetAutoStart());
         } else if (LOWORD(wParam) == ID_TRAY_EXIT) {
             Shell_NotifyIcon(NIM_DELETE, &nid);
             PostQuitMessage(0);

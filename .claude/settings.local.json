@@ -15,7 +15,9 @@
       "Bash(cmd.exe /c \"where cmake & where g++ & where cl & where mingw32-make\")",
       "Bash(cmd.exe /c \"where cmake\")",
       "Bash(cmd.exe /c \"where g++\")",
-      "Bash(cmd.exe /c \"where cl\")"
+      "Bash(cmd.exe /c \"where cl\")",
+      "Bash(cmake -S . -B build)",
+      "Bash(cmake --build build --config Release)"
     ]
   }
 }
