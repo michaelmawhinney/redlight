@@ -53,8 +53,8 @@ RedLight is built and tested as a Windows x64 application. Use Visual Studio 202
 ### Build Instructions
 1. Clone the repository:
    ```
-   git clone https://github.com/michaelmawhinney/RedLight.git
-   cd RedLight
+   git clone https://github.com/michaelmawhinney/redlight.git
+   cd redlight
    ```
 2. Run CMake to generate the build configuration:
    ```
