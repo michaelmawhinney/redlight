@@ -1,11 +1,18 @@
 name: Build
 
 on:
+  pull_request:
+    branches:
+      - main
+
   push:
     branches:
+      - main
       - dev
     tags:
       - 'v*'
+
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -24,7 +31,7 @@ jobs:
       uses: lukka/get-cmake@latest
 
     - name: Configure CMake
-      run: cmake -S . -B build
+      run: cmake -S . -B build -A x64
 
     - name: Build
       run: cmake --build build --config Release

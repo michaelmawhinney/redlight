@@ -1,13 +1,28 @@
 cmake_minimum_required(VERSION 3.20)
-project(RedLight VERSION 0.4.0)
+project(RedLight VERSION 0.5.0)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-add_executable(RedLight WIN32 src/main.cpp resources/app.rc)
+add_executable(RedLight WIN32
+    src/Diagnostics.cpp
+    src/Diagnostics.h
+    src/main.cpp
+    src/DisplayFilter.h
+    src/GammaRampFilter.h
+    src/GammaRampFilter.cpp
+    src/MagnificationFilter.h
+    src/MagnificationFilter.cpp
+    resources/app.rc
+)
 
-target_link_libraries(RedLight PRIVATE user32 gdi32 Shell32)
+target_link_libraries(RedLight PRIVATE user32 gdi32 Shell32 Magnification)
 
 set_target_properties(RedLight PROPERTIES
     LINK_FLAGS "/SUBSYSTEM:WINDOWS"
 )
+
+if (WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+    add_executable(MagRedProbe experiments/MagRedProbe.cpp)
+    target_link_libraries(MagRedProbe PRIVATE Magnification)
+endif()
