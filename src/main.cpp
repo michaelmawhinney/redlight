@@ -296,7 +296,7 @@ void InitializeTrayIcon(HINSTANCE hInstance) {
 
 void ShowAboutDialog(HWND parent) {
     char aboutText[512];
-    sprintf_s(aboutText, sizeof(aboutText), "RedLight v0.4.0-beta\n\ngithub.com/michaelmawhinney/redlight");
+    sprintf_s(aboutText, sizeof(aboutText), "RedLight v0.5.0-beta\n\ngithub.com/michaelmawhinney/redlight");
     const char* aboutTitle = "About";
 
     MessageBox(parent, aboutText, aboutTitle, MB_OK | MB_ICONINFORMATION);

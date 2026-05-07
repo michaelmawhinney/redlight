@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+## [0.5.0-beta] - 2026-05-07
+
+### Added
 - Added an experimental Magnification API red-filter probe.
 - Added a Magnification API display backend as the preferred RedLight backend.
 - Added a DisplayFilter abstraction for display backend implementations.
