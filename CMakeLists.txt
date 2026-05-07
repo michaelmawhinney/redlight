@@ -11,3 +11,8 @@ target_link_libraries(RedLight PRIVATE user32 gdi32 Shell32)
 set_target_properties(RedLight PROPERTIES
     LINK_FLAGS "/SUBSYSTEM:WINDOWS"
 )
+
+if (WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+    add_executable(MagRedProbe experiments/MagRedProbe.cpp)
+    target_link_libraries(MagRedProbe PRIVATE Magnification)
+endif()
