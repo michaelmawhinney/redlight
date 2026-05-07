@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Kept the legacy gamma-ramp backend as a fallback.
 - Added lightweight diagnostics logging to `%LOCALAPPDATA%\\RedLight\\redlight.log`.
 - Added a command-line display reset mode for `--restore` and `--reset-display`.
+- Added startup diagnostics log rotation for `%LOCALAPPDATA%\\RedLight\\redlight.log` with up to three archived logs.
 
 ### Changed
 - Refactored the gamma-ramp implementation into GammaRampFilter.

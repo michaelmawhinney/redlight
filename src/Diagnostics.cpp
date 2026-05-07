@@ -12,7 +12,9 @@ HANDLE g_logFile = INVALID_HANDLE_VALUE;
 bool g_initialized = false;
 SRWLOCK g_lock = SRWLOCK_INIT;
 
-std::string BuildLogPath() {
+constexpr ULONGLONG kMaxLogSizeBytes = 1ull << 20;
+
+std::string BuildLogDirectory() {
     char localAppData[32768] = {};
     const DWORD length = GetEnvironmentVariableA("LOCALAPPDATA", localAppData, static_cast<DWORD>(sizeof(localAppData)));
     if (length == 0 || length >= sizeof(localAppData)) {
@@ -29,7 +31,17 @@ std::string BuildLogPath() {
         }
     }
 
-    directory += "\\redlight.log";
+    return directory;
+}
+
+std::string BuildLogPath(const char* fileName) {
+    std::string directory = BuildLogDirectory();
+    if (directory.empty()) {
+        return {};
+    }
+
+    directory += "\\";
+    directory += fileName ? fileName : "";
     return directory;
 }
 
@@ -47,6 +59,90 @@ std::string BuildTimestamp() {
         static_cast<unsigned>(st.wSecond),
         static_cast<unsigned>(st.wMilliseconds));
     return timestamp;
+}
+
+void WriteDebugFailure(const char* action, const std::string& path, DWORD error) {
+    char buffer[512] = {};
+    std::snprintf(buffer, sizeof(buffer), "RedLight: diagnostics %s failed for %s (error %lu)\n",
+        action ? action : "operation",
+        path.c_str(),
+        static_cast<unsigned long>(error));
+    OutputDebugStringA(buffer);
+}
+
+bool IsLogTooLarge(const std::string& path) {
+    WIN32_FILE_ATTRIBUTE_DATA data = {};
+    if (!GetFileAttributesExA(path.c_str(), GetFileExInfoStandard, &data)) {
+        return false;
+    }
+
+    const ULONGLONG size = (static_cast<ULONGLONG>(data.nFileSizeHigh) << 32) |
+        static_cast<ULONGLONG>(data.nFileSizeLow);
+    return size > kMaxLogSizeBytes;
+}
+
+void BestEffortDeleteFile(const std::string& path) {
+    if (!DeleteFileA(path.c_str())) {
+        const DWORD error = GetLastError();
+        if (error != ERROR_FILE_NOT_FOUND && error != ERROR_PATH_NOT_FOUND) {
+            WriteDebugFailure("delete", path, error);
+        }
+    }
+}
+
+void BestEffortMoveFile(const std::string& from, const std::string& to) {
+    if (!MoveFileExA(from.c_str(), to.c_str(), MOVEFILE_REPLACE_EXISTING)) {
+        const DWORD error = GetLastError();
+        if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND) {
+            return;
+        }
+
+        std::string path = from;
+        path += " -> ";
+        path += to;
+        WriteDebugFailure("rename", path, error);
+    }
+}
+
+void RotateLogsIfNeeded() {
+    const std::string logPath = BuildLogPath("redlight.log");
+    if (logPath.empty() || !IsLogTooLarge(logPath)) {
+        return;
+    }
+
+    const std::string log1Path = BuildLogPath("redlight.1.log");
+    const std::string log2Path = BuildLogPath("redlight.2.log");
+    const std::string log3Path = BuildLogPath("redlight.3.log");
+    if (log1Path.empty() || log2Path.empty() || log3Path.empty()) {
+        return;
+    }
+
+    BestEffortDeleteFile(log3Path);
+    BestEffortMoveFile(log2Path, log3Path);
+    BestEffortMoveFile(log1Path, log2Path);
+    BestEffortMoveFile(logPath, log1Path);
+}
+
+void OpenLogFile() {
+    const std::string path = BuildLogPath("redlight.log");
+    if (path.empty()) {
+        return;
+    }
+
+    RotateLogsIfNeeded();
+
+    g_logFile = CreateFileA(
+        path.c_str(),
+        FILE_APPEND_DATA,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        NULL,
+        OPEN_ALWAYS,
+        FILE_ATTRIBUTE_NORMAL,
+        NULL
+    );
+    if (g_logFile == INVALID_HANDLE_VALUE) {
+        OutputDebugStringA("RedLight: diagnostics log file unavailable; continuing with OutputDebugStringA only.\n");
+    }
 }
 
 void WriteLine(const char* message) {
@@ -76,22 +172,7 @@ void Initialize() {
         return;
     }
 
-    const std::string path = BuildLogPath();
-    if (!path.empty()) {
-        g_logFile = CreateFileA(
-            path.c_str(),
-            FILE_APPEND_DATA,
-            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-            NULL,
-            OPEN_ALWAYS,
-            FILE_ATTRIBUTE_NORMAL,
-            NULL
-        );
-        if (g_logFile == INVALID_HANDLE_VALUE) {
-            OutputDebugStringA("RedLight: diagnostics log file unavailable; continuing with OutputDebugStringA only.\n");
-        }
-    }
-
+    OpenLogFile();
     g_initialized = true;
 }
 
