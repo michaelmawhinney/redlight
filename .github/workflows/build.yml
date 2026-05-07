@@ -23,7 +23,7 @@ jobs:
     runs-on: windows-2022
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
@@ -37,7 +37,7 @@ jobs:
       run: cmake --build build --config Release
 
     - name: Archive Artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: redlight
         path: build/Release/RedLight.exe
