@@ -1,4 +1,5 @@
 #include "GammaRampFilter.h"
+#include "Diagnostics.h"
 
 #include <cstdio>
 
@@ -28,6 +29,7 @@ bool GammaRampFilter::initialize() {
     hdc_ = GetDC(NULL);
     if (!hdc_) {
         SetError("GetDC", GetLastError());
+        Diagnostics::LogFormat("%s initialization failed.", kFilterName);
         return false;
     }
 
@@ -35,6 +37,7 @@ bool GammaRampFilter::initialize() {
         SetError("GetDeviceGammaRamp", GetLastError());
         ReleaseDC(NULL, hdc_);
         hdc_ = NULL;
+        Diagnostics::LogFormat("%s initialization failed.", kFilterName);
         return false;
     }
 
@@ -42,6 +45,7 @@ bool GammaRampFilter::initialize() {
     initialized_ = true;
     active_ = false;
     lastError_[0] = '\0';
+    Diagnostics::LogFormat("%s initialization succeeded.", kFilterName);
     return true;
 }
 
@@ -60,6 +64,7 @@ bool GammaRampFilter::enable() {
     }
 
     active_ = true;
+    Diagnostics::LogFormat("%s enable succeeded.", kFilterName);
     return true;
 }
 
@@ -78,6 +83,7 @@ bool GammaRampFilter::disable() {
     }
 
     active_ = false;
+    Diagnostics::LogFormat("%s disable succeeded.", kFilterName);
     return true;
 }
 
@@ -91,8 +97,9 @@ void GammaRampFilter::shutdown() {
     }
 
     if (hdc_) {
+        Diagnostics::LogFormat("%s shutdown restore attempt.", kFilterName);
         if (!SetGammaRamp(originalGammaRamp_, "shutdown restore")) {
-            OutputDebugStringA("GammaRampFilter: shutdown restore failed; display state may not have been restored.\n");
+            Diagnostics::Log("GammaRampFilter: shutdown restore failed; display state may not have been restored.");
         } else {
             active_ = false;
         }
@@ -115,7 +122,7 @@ void GammaRampFilter::SetError(const char* action, DWORD error) {
         kFilterName,
         action,
         static_cast<unsigned long>(error));
-    OutputDebugStringA(lastError_);
+    Diagnostics::LogFormat("%s: %s failed (GetLastError=%lu)", kFilterName, action, static_cast<unsigned long>(error));
 }
 
 bool GammaRampFilter::SetGammaRamp(WORD ramp[3][256], const char* action) {

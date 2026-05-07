@@ -12,14 +12,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a Magnification API display backend as the preferred RedLight backend.
 - Added a DisplayFilter abstraction for display backend implementations.
 - Kept the legacy gamma-ramp backend as a fallback.
+- Added lightweight diagnostics logging to `%LOCALAPPDATA%\\RedLight\\redlight.log`.
+- Added a command-line display reset mode for `--restore` and `--reset-display`.
 
 ### Changed
 - Refactored the gamma-ramp implementation into GammaRampFilter.
 - Updated the tray app to select the Magnification backend first and fall back to gamma ramp if needed.
+- Added startup and shutdown diagnostics, backend selection logging, and toggle/reset logging.
 
 ### Fixed
 - Improved display backend state handling so active state is only changed after successful backend calls.
 - Improved restore behavior by preserving and restoring the previous Magnification color matrix.
+- Added a best-effort Magnification restore path for display recovery without starting the tray UI.
+- Updated reset mode so `--restore` and `--reset-display` can ask a running tray instance to restore the active display filter.
 
 ### Tested
 - Verified Windows x64 build.

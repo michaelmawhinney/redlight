@@ -1,4 +1,5 @@
 #include "MagnificationFilter.h"
+#include "Diagnostics.h"
 
 #include <cstdio>
 
@@ -41,6 +42,7 @@ bool MagnificationFilter::initialize() {
 
     if (!MagInitialize()) {
         LogError("MagInitialize", GetLastError());
+        Diagnostics::LogFormat("%s initialization failed.", kFilterName);
         return false;
     }
 
@@ -50,12 +52,13 @@ bool MagnificationFilter::initialize() {
     } else {
         LogError("MagGetFullscreenColorEffect", GetLastError());
         restoreEffect_ = kIdentityEffect;
-        OutputDebugStringA("MagnificationFilter: using identity restore matrix because the previous full-screen color effect could not be captured.\n");
+        Diagnostics::Log("MagnificationFilter: using identity restore matrix because the previous full-screen color effect could not be captured.");
     }
 
     initialized_ = true;
     active_ = false;
     lastError_[0] = '\0';
+    Diagnostics::LogFormat("%s initialization succeeded.", kFilterName);
     return true;
 }
 
@@ -74,6 +77,7 @@ bool MagnificationFilter::enable() {
     }
 
     active_ = true;
+    Diagnostics::LogFormat("%s enable succeeded.", kFilterName);
     return true;
 }
 
@@ -92,6 +96,7 @@ bool MagnificationFilter::disable() {
     }
 
     active_ = false;
+    Diagnostics::LogFormat("%s disable succeeded.", kFilterName);
     return true;
 }
 
@@ -105,8 +110,9 @@ void MagnificationFilter::shutdown() {
     }
 
     if (active_) {
+        Diagnostics::LogFormat("%s shutdown restore attempt.", kFilterName);
         if (!SetColorEffect(restoreEffect_, "shutdown restore")) {
-            OutputDebugStringA("MagnificationFilter: shutdown restore failed; display state may not have been restored.\n");
+            Diagnostics::Log("MagnificationFilter: shutdown restore failed; display state may not have been restored.");
         } else {
             active_ = false;
         }
@@ -114,6 +120,8 @@ void MagnificationFilter::shutdown() {
 
     if (!MagUninitialize()) {
         LogError("MagUninitialize", GetLastError());
+    } else {
+        Diagnostics::LogFormat("%s shutdown completed.", kFilterName);
     }
 
     initialized_ = false;
@@ -128,7 +136,7 @@ void MagnificationFilter::LogError(const char* action, DWORD error) {
         kFilterName,
         action,
         static_cast<unsigned long>(error));
-    OutputDebugStringA(lastError_);
+    Diagnostics::LogFormat("%s: %s failed (GetLastError=%lu)", kFilterName, action, static_cast<unsigned long>(error));
 }
 
 bool MagnificationFilter::SetColorEffect(const MAGCOLOREFFECT& effect, const char* action) {
