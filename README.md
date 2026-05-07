@@ -34,6 +34,14 @@ After starting RedLight, an icon will appear in the system tray.
 * This application may conflict with other apps/features that change display color, such as f.lux, Windows Night Light, HDR/color calibration settings, GPU color controls, or similar display-color tools. If you want to use RedLight, you should close or disable similar apps/features to avoid unexpected behavior.
 * RedLight is provided as-is and without any warranty of any kind. Although the code is simple and straightforward, you are still advised to use it at your own risk!
 
+## Windows Security Notice
+
+RedLight beta builds are currently unsigned. Because the executable is not code-signed, Windows or Microsoft Defender SmartScreen may show a warning before running it, especially the first time it is downloaded.
+
+This warning does not necessarily mean RedLight is malicious; it means Windows does not yet recognize the publisher or file reputation. RedLight is open source, so users who are concerned are encouraged to inspect the source code, build the app themselves, or verify the downloaded executable against the SHA-256 checksum published with the release.
+
+Do not run software you do not trust. RedLight is provided as-is and without warranty.
+
 ## Troubleshooting
 * Log file: `%LOCALAPPDATA%\RedLight\redlight.log`
 * Reset commands:
