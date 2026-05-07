@@ -3,6 +3,7 @@
 #include <cstdio>
 
 #include "GammaRampFilter.h"
+#include "MagnificationFilter.h"
 
 #define WM_TRAYICON (WM_USER + 1)
 #define IDI_REDLIGHT_ICON 100
@@ -10,9 +11,20 @@
 #define ID_TRAY_ABOUT 201
 #define ID_TRAY_EXIT 202
 
+namespace {
+
+MagnificationFilter g_magnificationFilter;
 GammaRampFilter g_gammaRampFilter;
 DisplayFilter* g_displayFilter = &g_gammaRampFilter;
 NOTIFYICONDATA nid = {};
+
+void LogBackendMessage(const char* message, const char* backendName) {
+    char buffer[256];
+    sprintf_s(buffer, sizeof(buffer), "RedLight: %s (%s)\n", message, backendName);
+    OutputDebugStringA(buffer);
+}
+
+}
 
 void ToggleRedlight();
 void UpdateTrayIconTip(const char* tip);
@@ -33,9 +45,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return 1;
     }
 
-    if (!g_displayFilter->initialize()) {
-        CloseHandle(hMutex);
-        return 1;
+    if (g_magnificationFilter.initialize()) {
+        g_displayFilter = &g_magnificationFilter;
+        LogBackendMessage("using primary display backend", g_displayFilter->name());
+    } else {
+        OutputDebugStringA("RedLight: MagnificationFilter initialization failed; falling back to GammaRampFilter.\n");
+        if (!g_gammaRampFilter.initialize()) {
+            CloseHandle(hMutex);
+            return 1;
+        }
+        g_displayFilter = &g_gammaRampFilter;
+        LogBackendMessage("using fallback display backend", g_displayFilter->name());
     }
 
     InitializeTrayIcon(hInstance);
@@ -87,7 +107,7 @@ void InitializeTrayIcon(HINSTANCE hInstance) {
     nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid.uCallbackMessage = WM_TRAYICON;
     nid.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_REDLIGHT_ICON));
-    strcpy_s(nid.szTip, "RedLight off");
+    strcpy_s(nid.szTip, g_displayFilter->isActive() ? "RedLight ON" : "RedLight off");
     Shell_NotifyIcon(NIM_ADD, &nid);
 }
 

@@ -9,10 +9,12 @@ add_executable(RedLight WIN32
     src/DisplayFilter.h
     src/GammaRampFilter.h
     src/GammaRampFilter.cpp
+    src/MagnificationFilter.h
+    src/MagnificationFilter.cpp
     resources/app.rc
 )
 
-target_link_libraries(RedLight PRIVATE user32 gdi32 Shell32)
+target_link_libraries(RedLight PRIVATE user32 gdi32 Shell32 Magnification)
 
 set_target_properties(RedLight PROPERTIES
     LINK_FLAGS "/SUBSYSTEM:WINDOWS"
