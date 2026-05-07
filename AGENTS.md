@@ -10,6 +10,8 @@ Do not replace the core behavior with a translucent overlay unless explicitly in
 
 - Keep changes small, focused, and reviewable.
 - Prefer native C++/Win32 unless explicitly instructed otherwise.
+- Update `CHANGELOG.md` under `[Unreleased]` for user-visible changes, display backend changes, release-related changes, and behavior changes.
+- Add a changelog entry for internal refactors when they affect safety, restore behavior, backend selection, diagnostics, or user-visible reliability.
 - Preserve the strict red-only output requirement:
   - Black remains black.
   - White becomes pure red.

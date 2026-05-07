@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Added an experimental Magnification API red-filter probe.
+- Added a Magnification API display backend as the preferred RedLight backend.
+- Added a DisplayFilter abstraction for display backend implementations.
+- Kept the legacy gamma-ramp backend as a fallback.
+
+### Changed
+- Refactored the gamma-ramp implementation into GammaRampFilter.
+- Updated the tray app to select the Magnification backend first and fall back to gamma ramp if needed.
+
+### Fixed
+- Improved display backend state handling so active state is only changed after successful backend calls.
+- Improved restore behavior by preserving and restoring the previous Magnification color matrix.
+
+### Tested
+- Verified Windows x64 build.
+- Verified tray toggle behavior.
+- Verified exit restoration.
+- Verified repeated enable/disable behavior.
+- Verified right-click Toggle ON/off behavior.
+- Verified MagRedProbe still builds/runs/restores.
+- Verified second-monitor behavior with the Magnification backend.
+
 ## [0.4.0-beta] - 2024-04-26
 
 ### Added
