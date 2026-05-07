@@ -2,16 +2,16 @@
 #include <shellapi.h>
 #include <cstdio>
 
+#include "GammaRampFilter.h"
+
 #define WM_TRAYICON (WM_USER + 1)
 #define IDI_REDLIGHT_ICON 100
 #define ID_TRAY_TOGGLE 200
 #define ID_TRAY_ABOUT 201
 #define ID_TRAY_EXIT 202
 
-HDC hDC;
-WORD originalGammaRamp[3][256];
-WORD redGammaRamp[3][256];
-bool isRedlightActive = false;
+GammaRampFilter g_gammaRampFilter;
+DisplayFilter* g_displayFilter = &g_gammaRampFilter;
 NOTIFYICONDATA nid = {};
 
 void ToggleRedlight();
@@ -24,21 +24,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     // silently exit multiple instances
     HANDLE hMutex = CreateMutex(NULL, TRUE, "Global\\RedLightApp");
+    if (!hMutex) {
+        return 1;
+    }
+
     if (GetLastError() == ERROR_ALREADY_EXISTS) {
+        CloseHandle(hMutex);
         return 1;
     }
 
-    hDC = GetDC(NULL);
-    if (!hDC) {
-        MessageBox(NULL, "Failed to get device context.", "Error", MB_ICONERROR);
+    if (!g_displayFilter->initialize()) {
+        CloseHandle(hMutex);
         return 1;
-    }
-
-    GetDeviceGammaRamp(hDC, originalGammaRamp); // store the original gamma ramp
-
-    for (int i = 0; i < 256; i++) {
-        redGammaRamp[0][i] = (WORD)(i << 8);
-        redGammaRamp[1][i] = redGammaRamp[2][i] = 0;
     }
 
     InitializeTrayIcon(hInstance);
@@ -49,8 +46,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         DispatchMessage(&msg);
     }
 
-    SetDeviceGammaRamp(hDC, originalGammaRamp); // restore the original gamma ramp
-    ReleaseDC(NULL, hDC);
+    g_displayFilter->shutdown();
 
     ReleaseMutex(hMutex);
     CloseHandle(hMutex);
@@ -63,13 +59,17 @@ void UpdateTrayIconTip(const char* tip) {
 }
 
 void ToggleRedlight() {
-    if (isRedlightActive) {
-        SetDeviceGammaRamp(hDC, originalGammaRamp);
+    if (g_displayFilter->isActive()) {
+        if (!g_displayFilter->disable()) {
+            OutputDebugStringA("RedLight: failed to disable red filter.\n");
+        }
     } else {
-        SetDeviceGammaRamp(hDC, redGammaRamp);
+        if (!g_displayFilter->enable()) {
+            OutputDebugStringA("RedLight: failed to enable red filter.\n");
+        }
     }
-    isRedlightActive = !isRedlightActive;
-    UpdateTrayIconTip(isRedlightActive ? "RedLight ON" : "RedLight off");
+
+    UpdateTrayIconTip(g_displayFilter->isActive() ? "RedLight ON" : "RedLight off");
 }
 
 void InitializeTrayIcon(HINSTANCE hInstance) {
@@ -92,7 +92,6 @@ void InitializeTrayIcon(HINSTANCE hInstance) {
 }
 
 void ShowAboutDialog(HWND parent) {
-    const HINSTANCE hInstance = GetModuleHandle(NULL);
     char aboutText[512];
     sprintf_s(aboutText, sizeof(aboutText), "RedLight v0.4.0-beta\n\ngithub.com/michaelmawhinney/redlight");
     const char* aboutTitle = "About";
