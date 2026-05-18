@@ -12,6 +12,8 @@
 #define ID_TRAY_TOGGLE 200
 #define ID_TRAY_ABOUT 201
 #define ID_TRAY_EXIT 202
+#define ID_TRAY_MODE_STRICT_RED 203
+#define ID_TRAY_MODE_LUMA_RED 204
 
 namespace {
 
@@ -28,7 +30,9 @@ bool ResetDisplay();
 bool RequestRunningInstanceRestore(bool* handled);
 void ToggleRedlight();
 void UpdateTrayIconTip(const char* tip);
+void RefreshTrayIconTip();
 void InitializeTrayIcon(HINSTANCE hInstance);
+void SetRedModeFromTray(RedMode mode);
 void ShowAboutDialog(HWND parent);
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -68,7 +72,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     if (g_magnificationFilter.initialize()) {
         g_displayFilter = &g_magnificationFilter;
-        Diagnostics::LogFormat("Selected backend: %s", g_displayFilter->name());
+        Diagnostics::LogFormat("Selected backend: %s; red mode: %s", g_displayFilter->name(), RedModeDisplayName(g_displayFilter->redMode()));
     } else {
         Diagnostics::Log("MagnificationFilter initialization failed; falling back to GammaRampFilter.");
         if (!g_gammaRampFilter.initialize()) {
@@ -80,7 +84,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             return 1;
         }
         g_displayFilter = &g_gammaRampFilter;
-        Diagnostics::LogFormat("Selected backend: %s", g_displayFilter->name());
+        Diagnostics::LogFormat("Selected backend: %s; red mode: %s", g_displayFilter->name(), RedModeDisplayName(g_displayFilter->redMode()));
     }
 
     Diagnostics::LogFormat("Monitor count: %d", GetSystemMetrics(SM_CMONITORS));
@@ -248,11 +252,27 @@ bool RequestRunningInstanceRestore(bool* handled) {
 
 void UpdateTrayIconTip(const char* tip) {
     strcpy_s(nid.szTip, sizeof(nid.szTip), tip);
-    Shell_NotifyIcon(NIM_MODIFY, &nid);
+    if (!Shell_NotifyIcon(NIM_MODIFY, &nid)) {
+        Diagnostics::LogFormat("Shell_NotifyIcon(NIM_MODIFY) failed (GetLastError=%lu).", static_cast<unsigned long>(GetLastError()));
+    }
+}
+
+void RefreshTrayIconTip() {
+    char tip[sizeof(nid.szTip)];
+    sprintf_s(tip,
+        sizeof(tip),
+        "RedLight %s - %s - %s",
+        g_displayFilter->isActive() ? "ON" : "off",
+        g_displayFilter->name(),
+        RedModeDisplayName(g_displayFilter->redMode()));
+    UpdateTrayIconTip(tip);
 }
 
 void ToggleRedlight() {
-    Diagnostics::LogFormat("Toggle request: %s", g_displayFilter->isActive() ? "disable" : "enable");
+    Diagnostics::LogFormat("Toggle request: %s (%s, %s)",
+        g_displayFilter->isActive() ? "disable" : "enable",
+        g_displayFilter->name(),
+        RedModeDisplayName(g_displayFilter->redMode()));
     if (g_displayFilter->isActive()) {
         if (!g_displayFilter->disable()) {
             Diagnostics::Log("Toggle result: disable failed.");
@@ -267,7 +287,7 @@ void ToggleRedlight() {
         }
     }
 
-    UpdateTrayIconTip(g_displayFilter->isActive() ? "RedLight ON" : "RedLight off");
+    RefreshTrayIconTip();
 }
 
 void InitializeTrayIcon(HINSTANCE hInstance) {
@@ -288,15 +308,49 @@ void InitializeTrayIcon(HINSTANCE hInstance) {
     nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid.uCallbackMessage = WM_TRAYICON;
     nid.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_REDLIGHT_ICON));
-    strcpy_s(nid.szTip, g_displayFilter->isActive() ? "RedLight ON" : "RedLight off");
+    sprintf_s(nid.szTip,
+        sizeof(nid.szTip),
+        "RedLight %s - %s - %s",
+        g_displayFilter->isActive() ? "ON" : "off",
+        g_displayFilter->name(),
+        RedModeDisplayName(g_displayFilter->redMode()));
     if (!Shell_NotifyIcon(NIM_ADD, &nid)) {
         Diagnostics::LogFormat("Shell_NotifyIcon(NIM_ADD) failed (GetLastError=%lu).", static_cast<unsigned long>(GetLastError()));
     }
 }
 
+void SetRedModeFromTray(RedMode mode) {
+    Diagnostics::LogFormat("Red mode request: %s -> %s (%s)",
+        RedModeDisplayName(g_displayFilter->redMode()),
+        RedModeDisplayName(mode),
+        g_displayFilter->name());
+
+    if (!g_displayFilter->supportsRedMode(mode)) {
+        Diagnostics::LogFormat("%s does not support %s; keeping %s.",
+            g_displayFilter->name(),
+            RedModeDisplayName(mode),
+            RedModeDisplayName(g_displayFilter->redMode()));
+        RefreshTrayIconTip();
+        return;
+    }
+
+    if (!g_displayFilter->setRedMode(mode)) {
+        Diagnostics::LogFormat("Red mode change to %s failed.", RedModeDisplayName(mode));
+    } else {
+        Diagnostics::LogFormat("Red mode change to %s succeeded.", RedModeDisplayName(g_displayFilter->redMode()));
+    }
+
+    RefreshTrayIconTip();
+}
+
 void ShowAboutDialog(HWND parent) {
     char aboutText[512];
-    sprintf_s(aboutText, sizeof(aboutText), "RedLight v0.5.0-beta\n\ngithub.com/michaelmawhinney/redlight");
+    sprintf_s(aboutText,
+        sizeof(aboutText),
+        "RedLight v0.5.1-beta\n\nBackend: %s\nRed mode: %s%s\n\ngithub.com/michaelmawhinney/redlight",
+        g_displayFilter->name(),
+        RedModeDisplayName(g_displayFilter->redMode()),
+        g_displayFilter->supportsRedMode(RedMode::LumaRed) ? "" : "\nLuma Red requires the Magnification API backend.");
     const char* aboutTitle = "About";
 
     MessageBox(parent, aboutText, aboutTitle, MB_OK | MB_ICONINFORMATION);
@@ -310,7 +364,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             GetCursorPos(&pt);
             HMENU hMenu = CreatePopupMenu();
             if (hMenu) {
+                const UINT strictFlags = MF_STRING | (g_displayFilter->redMode() == RedMode::StrictRed ? MF_CHECKED : MF_UNCHECKED);
+                const UINT lumaFlags = MF_STRING
+                    | (g_displayFilter->redMode() == RedMode::LumaRed ? MF_CHECKED : MF_UNCHECKED)
+                    | (g_displayFilter->supportsRedMode(RedMode::LumaRed) ? MF_ENABLED : MF_GRAYED);
                 AppendMenu(hMenu, MF_STRING, ID_TRAY_TOGGLE, TEXT("Toggle ON/off"));
+                AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
+                AppendMenu(hMenu, strictFlags, ID_TRAY_MODE_STRICT_RED, TEXT("Strict Red"));
+                AppendMenu(hMenu, lumaFlags, ID_TRAY_MODE_LUMA_RED, TEXT("Luma Red"));
+                AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
                 AppendMenu(hMenu, MF_STRING, ID_TRAY_ABOUT, TEXT("About"));
                 AppendMenu(hMenu, MF_STRING, ID_TRAY_EXIT, TEXT("Exit"));
                 SetForegroundWindow(hwnd);
@@ -325,6 +387,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
     case WM_COMMAND:
         if (LOWORD(wParam) == ID_TRAY_TOGGLE) {
             ToggleRedlight();
+        } else if (LOWORD(wParam) == ID_TRAY_MODE_STRICT_RED) {
+            SetRedModeFromTray(RedMode::StrictRed);
+        } else if (LOWORD(wParam) == ID_TRAY_MODE_LUMA_RED) {
+            SetRedModeFromTray(RedMode::LumaRed);
         } else if (LOWORD(wParam) == ID_TRAY_EXIT) {
             Shell_NotifyIcon(NIM_DELETE, &nid);
             PostQuitMessage(0);
@@ -345,7 +411,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             return FALSE;
         }
 
-        UpdateTrayIconTip("RedLight off");
+        RefreshTrayIconTip();
         Diagnostics::Log("External restore request: disable succeeded.");
         return TRUE;
 

@@ -14,6 +14,9 @@ public:
     bool enable() override;
     bool disable() override;
     bool isActive() const override;
+    bool setRedMode(RedMode mode) override;
+    RedMode redMode() const override;
+    bool supportsRedMode(RedMode mode) const override;
     void shutdown() override;
     const char* name() const override;
 
@@ -23,6 +26,7 @@ private:
 
     bool initialized_;
     bool active_;
+    RedMode redMode_;
     MAGCOLOREFFECT restoreEffect_;
     char lastError_[256];
 };

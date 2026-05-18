@@ -15,7 +15,7 @@ constexpr MAGCOLOREFFECT kIdentityEffect = {{
     {0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 }};
 
-constexpr MAGCOLOREFFECT kRedOnlyEffect = {{
+constexpr MAGCOLOREFFECT kStrictRedEffect = {{
     {1.0f, 0.0f, 0.0f, 0.0f, 0.0f},
     {0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
     {0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
@@ -23,11 +23,33 @@ constexpr MAGCOLOREFFECT kRedOnlyEffect = {{
     {0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 }};
 
+constexpr MAGCOLOREFFECT kLumaRedEffect = {{
+    // MAGCOLOREFFECT uses input-channel rows and output-channel columns.
+    // Put luma weights in the red output column so green and blue never emit.
+    {0.299f, 0.0f, 0.0f, 0.0f, 0.0f},
+    {0.587f, 0.0f, 0.0f, 0.0f, 0.0f},
+    {0.114f, 0.0f, 0.0f, 0.0f, 0.0f},
+    {0.0f, 0.0f, 0.0f, 1.0f, 0.0f},
+    {0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+}};
+
+const MAGCOLOREFFECT& ColorEffectForMode(RedMode mode) {
+    switch (mode) {
+    case RedMode::StrictRed:
+        return kStrictRedEffect;
+    case RedMode::LumaRed:
+        return kLumaRedEffect;
+    }
+
+    return kStrictRedEffect;
+}
+
 }  // namespace
 
 MagnificationFilter::MagnificationFilter()
     : initialized_(false),
       active_(false),
+      redMode_(RedMode::LumaRed),
       restoreEffect_(kIdentityEffect),
       lastError_{} {}
 
@@ -72,12 +94,14 @@ bool MagnificationFilter::enable() {
         return true;
     }
 
-    if (!SetColorEffect(kRedOnlyEffect, "MagSetFullscreenColorEffect(red-only)")) {
+    char action[128];
+    sprintf_s(action, sizeof(action), "MagSetFullscreenColorEffect(%s)", RedModeDisplayName(redMode_));
+    if (!SetColorEffect(ColorEffectForMode(redMode_), action)) {
         return false;
     }
 
     active_ = true;
-    Diagnostics::LogFormat("%s enable succeeded.", kFilterName);
+    Diagnostics::LogFormat("%s enable succeeded using %s.", kFilterName, RedModeDisplayName(redMode_));
     return true;
 }
 
@@ -102,6 +126,32 @@ bool MagnificationFilter::disable() {
 
 bool MagnificationFilter::isActive() const {
     return active_;
+}
+
+bool MagnificationFilter::setRedMode(RedMode mode) {
+    if (mode == redMode_) {
+        return true;
+    }
+
+    if (active_) {
+        char action[128];
+        sprintf_s(action, sizeof(action), "MagSetFullscreenColorEffect(%s)", RedModeDisplayName(mode));
+        if (!SetColorEffect(ColorEffectForMode(mode), action)) {
+            return false;
+        }
+    }
+
+    redMode_ = mode;
+    Diagnostics::LogFormat("%s red mode set to %s.", kFilterName, RedModeDisplayName(redMode_));
+    return true;
+}
+
+RedMode MagnificationFilter::redMode() const {
+    return redMode_;
+}
+
+bool MagnificationFilter::supportsRedMode(RedMode mode) const {
+    return mode == RedMode::StrictRed || mode == RedMode::LumaRed;
 }
 
 void MagnificationFilter::shutdown() {

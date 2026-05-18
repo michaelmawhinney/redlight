@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+## [0.5.1-beta] - 2026-05-18
+
+### Added
+- Added an optional Luma Red mode for the Magnification API backend.
+- Added tray menu options for switching between Strict Red and Luma Red.
+
+### Changed
+- Changed the Magnification API backend default red mode to Luma Red while keeping gamma-ramp fallback on Strict Red only.
+- Updated tray tooltip, about text, and diagnostics to show the active backend and red mode.
+- Documented Strict Red versus Luma Red behavior and the Magnification API requirement for Luma Red.
+- Updated README and changelog terminology to use "Luma Red" and "luma-weighted red" instead of "luminance-based" or "red luminance".
+
 ## [0.5.0-beta] - 2026-05-07
 
 ### Added

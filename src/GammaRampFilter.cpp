@@ -91,6 +91,23 @@ bool GammaRampFilter::isActive() const {
     return active_;
 }
 
+bool GammaRampFilter::setRedMode(RedMode mode) {
+    if (mode == RedMode::StrictRed) {
+        return true;
+    }
+
+    Diagnostics::Log("GammaRampFilter: Luma Red requested but gamma ramps do not support cross-channel mixing; staying in Strict Red.");
+    return false;
+}
+
+RedMode GammaRampFilter::redMode() const {
+    return RedMode::StrictRed;
+}
+
+bool GammaRampFilter::supportsRedMode(RedMode mode) const {
+    return mode == RedMode::StrictRed;
+}
+
 void GammaRampFilter::shutdown() {
     if (!initialized_) {
         return;

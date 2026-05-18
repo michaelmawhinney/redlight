@@ -1,20 +1,27 @@
 # RedLight
-RedLight is a lightweight Windows tray application that applies a strict red-only display filter. It is not a translucent tint. The app runs from the system tray, allowing users to easily toggle the filter on and off with one click.
+RedLight is a lightweight Windows tray application that applies a red-only display filter. It is not a translucent tint. The app runs from the system tray, allowing users to easily toggle the filter on and off with one click.
 
 ## Features
 - **Toggle Red Filter**: Quickly enable or disable the red filter directly from the system tray.
 - **Minimal Resource Usage**: Runs quietly in the background with essentially no impact on system performance.
 
-## Visual Behavior
-RedLight is intended to transform display output as follows:
+## Red Modes
+Strict Red is the original red-channel-only mode and transforms display output as follows:
 - Black stays black.
 - White becomes pure red.
 - Red stays red.
 - Green and blue output are eliminated.
 
+Luma Red is the default mode when the Magnification API backend is active. It converts visible colors into red luma using BT.601-style luma weights:
+- Output red = `0.299R + 0.587G + 0.114B`.
+- Output green = `0`.
+- Output blue = `0`.
+
+Luma Red keeps the display red-only while making blue, green, and cyan UI elements visible as shades of red. It requires the Windows Magnification API backend because gamma ramps do not support cross-channel color mixing. If RedLight falls back to the gamma-ramp backend, RedLight starts in Strict Red and only Strict Red is available.
+
 ## Architecture
-v0.5.0-beta uses the Windows Magnification API full-screen color transform as the preferred backend.
-The legacy gamma-ramp backend is retained as a fallback.
+v0.5.1-beta uses the Windows Magnification API full-screen color transform as the preferred backend, with Luma Red as the default mode.
+The legacy gamma-ramp backend is retained as a Strict Red fallback.
 
 ## Installation
 To install RedLight, follow these steps:
@@ -27,6 +34,8 @@ After starting RedLight, an icon will appear in the system tray.
 * Left-click on the icon to toggle between red mode and normal mode.
 * Right-click the icon to access the following options:
   - **Toggle ON/off**: Enable or disable the red light filter.
+  - **Strict Red**: Use the original red-channel-only mode.
+  - **Luma Red**: Use the default luma-weighted red mode when the Magnification API backend is active.
   - **About**: Display information about the application.
   - **Exit**: Quit the application.
 
