@@ -19,6 +19,20 @@ Luma Red is the default mode when the Magnification API backend is active. It co
 
 Luma Red keeps the display red-only while making blue, green, and cyan UI elements visible as shades of red. It requires the Windows Magnification API backend because gamma ramps do not support cross-channel color mixing. If RedLight falls back to the gamma-ramp backend, RedLight starts in Strict Red and only Strict Red is available.
 
+## Screenshots
+
+### Desktop example
+
+| Normal display | Luma Red mode |
+| --- | --- |
+| ![Normal Windows desktop screenshot](docs/images/normal-desktop.webp) | ![Windows desktop with RedLight Luma Red mode enabled](docs/images/luma-red-desktop.webp) |
+
+### Color test example
+
+| Normal color bars | Luma Red mode |
+| --- | --- |
+| ![Color bars test image](docs/images/color-bars.webp) | ![Color bars shown through RedLight Luma Red mode](docs/images/luma-red-color-bars.webp) |
+
 ## Architecture
 v0.5.1-beta uses the Windows Magnification API full-screen color transform as the preferred backend, with Luma Red as the default mode.
 The legacy gamma-ramp backend is retained as a Strict Red fallback.
